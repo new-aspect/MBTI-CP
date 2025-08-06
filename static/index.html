@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>CP剧情模拟器</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background-color: #f7f7f7; line-height: 1.6; }
+        h1 { text-align: center; color: #333; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px F10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        select, button { width: 100%; padding: 12px; border-radius: 4px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        #result { background-color: #fff; padding: 0; border-radius: 4px; margin-top: 30px; min-height: 100px; border: 1px solid #eee;}
+        .report-title { font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 20px; color: #0056b3;}
+        .report-section { margin-bottom: 25px; }
+        .report-section h2 { font-size: 18px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-bottom: 15px;}
+        .personality-card { display: flex; justify-content: space-around; gap: 20px; text-align: center; }
+        .personality-card div { background-color: #f8f9fa; padding: 15px; border-radius: 8px; width: 45%; }
+        .scenario-step { background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
+        .scenario-step h3 { font-size: 16px; margin-top: 0; color: #0056b3;}
+        .tip { background-color: #fff3cd; border-left: 5px solid #ffeeba; padding: 15px; text-align: center; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CP剧情模拟器</h1>
+        <div class="form-group">
+            <label for="mbti_a">你的人格 (A):</label>
+            <select id="mbti_a"></select>
+        </div>
+        <div class="form-group">
+            <label for="mbti_b">TA的人格 (B):</label>
+            <select id="mbti_b"></select>
+        </div>
+        <div class="form-group">
+            <label for="scenario">选择一个情景:</label>
+            <select id="scenario"></select>
+        </div>
+        <button id="submitBtn" onclick="getAnalysis()">开始推演</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // --- 【新增代码块】当页面加载完成后，自动填充下拉框 ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const mbtiTypes = [
+                'INFJ', 'ENFJ', 'INFP', 'ENFP', 'ISTJ', 'ESTJ', 'ISFJ', 'ESFJ',
+                'INTJ', 'ENTJ', 'INTP', 'ENTP', 'ISTP', 'ESTP', 'ISFP', 'ESFP'
+            ];
+            const scenarios = [
+                '我们因为“计划 vs. 随性”吵架了，怎么办？',
+                '我们应该如何规划我们的第一次旅行？',
+                'TA好像心情不好，我该如何安慰？'
+            ];
+
+            const mbtiASelect = document.getElementById('mbti_a');
+            const mbtiBSelect = document.getElementById('mbti_b');
+            const scenarioSelect = document.getElementById('scenario');
+
+            // 填充人格A的下拉框
+            mbtiTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                mbtiASelect.appendChild(option);
+            });
+
+            // 填充人格B的下拉框
+            mbtiTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                mbtiBSelect.appendChild(option);
+            });
+            // 为B设置一个不同的默认值，增加用户体验
+            mbtiBSelect.value = 'ENFP'; 
+
+            // 填充情景的下拉框
+            scenarios.forEach(scenario => {
+                const option = document.createElement('option');
+                option.value = scenario;
+                option.textContent = scenario;
+                scenarioSelect.appendChild(option);
+            });
+        });
+
+        // --- 新增的函数：用于将JSON数据渲染成漂亮的HTML ---
+        function renderResult(data) {
+            const resultDiv = document.getElementById('result');
+            let html = '';
+
+            // 渲染标题
+            html += `<div class="report-title">${data['标题'] || '推演报告'}</div>`;
+
+            // 渲染人格分析
+            const analysis = data['人格分析'];
+            if (analysis) {
+                html += `<div class="report-section"><h2>人格速写</h2><div class="personality-card">`;
+                html += `<div><strong>${analysis['人格A']['类型']}</strong><p><small>${analysis['人格A']['核心特质'].join(' / ')}</small></p></div>`;
+                html += `<div><strong>${analysis['人格B']['类型']}</strong><p><small>${analysis['人格B']['核心特质'].join(' / ')}</small></p></div>`;
+                html += `</div></div>`;
+            }
+
+            // 渲染情景剧本
+            const script = data['情景剧本'];
+            if (script && script.length > 0) {
+                html += `<div class="report-section"><h2>情景剧本</h2>`;
+                script.forEach(step => {
+                    html += `<div class="scenario-step"><h3>${step['步骤标题']}</h3><p>${step['内容']}</p></div>`;
+                });
+                html += `</div>`;
+            }
+            
+            // 渲染锦囊妙计
+            const tip = data['锦囊妙计'];
+            if (tip) {
+                html += `<div class="report-section"><h2>锦囊妙计</h2><div class="tip">${tip}</div></div>`;
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        async function getAnalysis() {
+            const mbti_a = document.getElementById('mbti_a').value;
+            const mbti_b = document.getElementById('mbti_b').value;
+            const scenario = document.getElementById('scenario').value;
+            const resultDiv = document.getElementById('result');
+            const submitBtn = document.getElementById('submitBtn');
+
+            submitBtn.disabled = true;
+            // 更新加载提示
+            resultDiv.innerHTML = `<div style="text-align:center; padding: 20px;">AI正在奋力思考中，请稍候...</div>`;
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mbti_a, mbti_b, scenario }),
+                });
+
+                if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
+                const data = await response.json();
+                
+                // 【重大改变】不再是粗暴地显示JSON字符串
+                // 而是调用我们新的渲染函数！
+                renderResult(data);
+
+            } catch (error) {
+                console.error('请求失败:', error);
+                resultDiv.innerHTML = `<div style="text-align:center; color:red; padding:20px;">哎呀，出错了。请检查后端服务器是否正在运行，或查看控制台获取更多信息。</div>`;
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
